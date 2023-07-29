@@ -16,9 +16,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./docs
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
@@ -39,6 +36,10 @@ jobs:
           resourceGroup: ACT
           imageToBuild: shipudemo.azurecr.io/aksdocs:${{ github.sha }}
           dockerfilePath: Dockerfile
+        run: |
+          cd ./docs
+
+
 
      
 
