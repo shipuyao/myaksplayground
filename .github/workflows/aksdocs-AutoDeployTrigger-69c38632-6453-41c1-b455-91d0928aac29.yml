@@ -1,0 +1,42 @@
+name: Trigger auto deployment for aksdocs
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - 'docs/**'
+    - '.github/workflows/aksdocs-AutoDeployTrigger-69c38632-6453-41c1-b455-91d0928aac29.yml'
+
+  # Allow mannually trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AKSDOCS_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          appSourcePath: ${{ github.workspace }}/docs 
+          registryUrl: shipudemo.azurecr.io
+          registryUsername: ${{ secrets.AKSDOCS_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.AKSDOCS_REGISTRY_PASSWORD }}
+          containerAppName: aksdocs
+          resourceGroup: ACT
+          imageToBuild: shipudemo.azurecr.io/aksdocs:${{ github.sha }}
+          dockerfilePath: Dockerfile
+
+     
+
