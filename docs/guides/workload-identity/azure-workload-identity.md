@@ -8,7 +8,7 @@ Secrets and certificates pose a secruity risk and can also expire which leads to
 
 Workload Identity Federation allows you to access Azure Active Directory. Azure AD protected resources without needing to manage secrets. 
 
-You use workload identity federation to configure an user-assigned managed identity or app registration in Azure AD to trust tokens from an external identity provider (IdP), such as GitHub or Googleso your external software can access the resources to which the applicaiton registration has been granted access. 
+You use workload identity federation to configure an user-assigned managed identity or app registration in Azure AD to trust tokens from an external identity provider (IdP), such as GitHub or Google so your external software can access the resources to which the applicaiton registration has been granted access. 
 
 ## General workflow
 
