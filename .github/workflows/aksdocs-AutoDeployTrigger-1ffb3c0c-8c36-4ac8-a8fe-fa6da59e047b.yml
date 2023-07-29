@@ -36,9 +36,6 @@ jobs:
           resourceGroup: ACT
           imageToBuild: shipudemo.azurecr.io/aksdocs:${{ github.sha }}
           dockerfilePath: Dockerfile
-        run: |
-          cd ./docs
-
 
 
      
