@@ -1,8 +1,13 @@
 # Azure Workload Identity
 
+## Introduction
+
+[Azure AD workload identity](https://learn.microsoft.com/en-us/azure/active-directory/workload-identities/workload-identities-overview) uses [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) enabling pods to use a Kubernetes identity (that is, a service account). A Kubernetes token is issued and [OIDC federation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens) enables Kubernetes applications to access Azure resources securely with Azure AD based on annotated service accounts.
+
+
 ## Workload Identity Federation​
 
-Typicall, an applicaiton service running outside of Azure uses a secret or certificate to access protected resources in Azure, Microsoft Graph or Microsoft 365.
+Typically, an applicaiton service running outside of Azure uses a secret or certificate to access protected resources in Azure, Microsoft Graph or Microsoft 365.
 
 Secrets and certificates pose a secruity risk and can also expire which leads to service downtime. Managing secretes properly is hard and takes developers away from their real work building products. 
 
@@ -20,6 +25,8 @@ You use workload identity federation to configure an user-assigned managed ident
 
 ### How it works in AKS
 
+In this model, the Kubernetes cluster becomes a token issuer, issuing tokens to Kubernetes Service Accounts. These service account tokens can be configured to be trusted on Azure AD applications or user-assigned managed identities. Workload can exchange a service account token projected to its volume for an Azure AD access token using the Azure Identity SDKs or the Microsoft Authentication Library (MSAL).
+
 ```mermaid
 sequenceDiagram
     box LightGoldenrodYellow AKS
@@ -28,11 +35,11 @@ sequenceDiagram
     end
     Kubelet->>Workload: 1. Projects environemt varaiables and service acount token
     Workload->>Azure AD: 2. Sends projected signed service account token and request Azure AD access token
-    Azure AD->>OIDC issuer URL: 3. Checks trust relationship, validate ID token
+    Azure AD->>OIDC discovery document: 3. Checks trust relationship, validate ID token
     Azure AD-->>Workload: 4. Returns Azure AD access token
     Workload->>Azure Resource: 5. Access resource using Azure AD access token
 ```
-#### How to valid incoming token
+### How to valid incoming token
 
 ```mermaid
 sequenceDiagram
@@ -71,7 +78,7 @@ sequenceDiagram
 ```
 </details>
 
-#### How injection works
+### How injection works
 
 ```mermaid
 flowchart LR
@@ -85,6 +92,9 @@ flowchart LR
 ```
 
 Webhook injects required *[environment variables](https://github.com/Azure/azure-workload-identity/blob/main/pkg/webhook/webhook.go#L354)* and *[projected service account token](https://github.com/Azure/azure-workload-identity/blob/main/pkg/webhook/webhook.go#L396)* volume into pod spec (click links for source code).
+
+<details>
+  <summary>Example of injected pod yaml</summary>
 
 ```yaml
 spec:
@@ -115,21 +125,21 @@ spec:
           expirationSeconds: 3600
           path: azure-identity-token
 ```
+</details>
 
-#### How azure-identity-token is generated
+### How azure-identity-token is generated
 
-By default, API server especially [ServiceAccount admission controller](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#serviceaccount-admission-controller) adds a projected volume to Pods, and this volume includes a token
+Using [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) to create token.
 
-The following properties are the building blocks of federated identity credentials:
-
+```bash
+# kube-apiserver
+  --service-account-signing-key-file=/etc/kubernetes/secrets/sa-key.pem
+  --service-account-key-file=/etc/kubernetes/secrets/sa-key.pem
+  --service-account-issuer=https://eastus.oic.prod-aks.azure.com/72f988bf-86f1-41af-91ab-2d7cd011db47/257f8561-5fce-4b05-a41c-edb625656b07/
+```
 **audiences** — The audience that can appear in the external token. This field is mandatory and should be set to api://AzureADTokenExchange for Azure AD. 
 
 **issuer** — The URL of the external identity provider. Must match the issuer claim of the external token being exchanged.
-
-```bash
-# in kube-apiserver command
---service-account-issuer=https://eastus.oic.prod-aks.azure.com/72f988bf-xxxx-yyyy-zzzz-2d7cd011db47/257f8561-xxxx-yyyy-zzzz-edb625656b07/
-```
 
 **subject** — The identifier of the external software workload within the external identity provider. In AKS the unique format is:
 
@@ -137,26 +147,13 @@ The following properties are the building blocks of federated identity credentia
 system:serviceaccount:$SERVICE_ACCOUNT_NAMESPACE:$SERVICE_ACCOUNT_NAME
 ```
 
-```bash
-# example
-system:serviceaccount:default:workload-identity-sa
-```
 The combination of issuer and subject must be unique on the app.
 
-#### Request sent to OIDC issuer
-![oidc logs](oidc-logs.png)
-
-#### Webhook pod mutation log
-![webhook logs](webhook-logs.png)
-
-### Tests
+## Quick Testing
 
 Using azure cli to quickly get access token via workload identity
 
 ```bash
-export SERVICE_ACCOUNT_NAMESPACE="default"
-export SERVICE_ACCOUNT_NAME="workload-identity-sa"
-
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Pod
@@ -172,7 +169,7 @@ spec:
       name: oidc
       imagePullPolicy: Always
       command: ["/bin/bash"]
-      args: ["-c", "sleep 999999"]
+      args: ["-c", "sleep infinity"]
   nodeSelector:
     kubernetes.io/os: linux
 EOF
@@ -185,6 +182,34 @@ az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-princi
 
 az account get-access-token --resource https://graph.microsoft.com
 ```
+
+## SDK Testing
+
+[Using Workload Idenity access Azure KV - Golang](https://github.com/Azure/azure-workload-identity/blob/main/examples/azure-identity/go/main.go)
+
+## Multiple Indentity
+
+Many to One
+
+string userAssignedClientId = "<your managed identity client Id>";
+var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = userAssignedClientId });
+
+var blobClient = new BlobClient(new Uri("https://myaccount.blob.core.windows.net/mycontainer/myblob"), credential);
+
+TODO
+
+
+## Troubleshooting
+
+### TODO
+
+logs
+
+### Request sent to OIDC issuer
+![oidc logs](oidc-logs.png)
+
+### Webhook pod mutation log
+![webhook logs](webhook-logs.png)
 
 ## Commen errors
 
@@ -204,15 +229,15 @@ The identity federation is not setup. For this issue, please follow doc. It may 
 
 In correct application ID, please check whether the application id on service account or manually specified in SDK is correct.
 
-AADSTS50166
+**AADSTS50166**
 
+```
 AADSTS50166 request to external oidc endpoint failed
+```
 
 This can happen if OIDC blob is not refreshed, please use ASI to navigate to Security Features -> Workload Identity, and find detailed OIDC url. Try access <oidc url>/.well-known/openid-configuration. If it doesn't present, try reconcile cluster as fix.
 
-Please refer to oid issuer url not working for details.
-
-AADSTS700024
+**AADSTS700024**
 
 ```json
 "error":"invalid_client","error_description":"AADSTS700024: Client assertion is not within its valid time range. Current time: 2023-05-30T05:19:20.3135329Z, assertion valid from 2023-02-28T08:57:37.0000000Z, expiry time of assertion 2023-02-28T09:57:37.0000000Z. Review the documentation at https://docs.microsoft.com/azure/active-directory/develop/active-directory-certificate-credentials .\r\nTrace ID: e108283e-633a-4b4d-ba18-dcd92c6ea500\r\nCorrelation ID: e52ee2e3-a68f-46a2-b95d-d5cd556399c8\r\nTimestamp: 2023-05-30 05:19:20Z","error_codes":[700024],"timestamp":"2023-05-30 05:19:20Z","trace_id":"e108283e-633a-4b4d-ba18-dcd92c6ea500","correlation_id":"e52ee2e3-a68f-46a2-b95d-d5cd556399c8","error_uri":"https://login.microsoftonline.com/error?code=700024"}
