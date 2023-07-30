@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -10,25 +11,27 @@ import (
 )
 
 func main() {
-	// create a secret client with the default credential
 	// DefaultAzureCredential will use the environment variables injected by the Azure Workload Identity
-	// mutating webhook to authenticate with Azure Key Vault.
+	// mutating webhook to authenticate with Azure Resource.
 
-	//cred, err := azidentity.NewDefaultAzureCredential(nil)
-	//if err != nil {
-	//      log.Fatal(err)
-	//}
+	/*
+		cred, err := azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+		      log.Fatal(err)
+		}
+	*/
 
-	cred, err := azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{ClientID: "d26641b9-074b-4e46-8c1f-cb3a513b2502"})
+	// Using user specified workload identity
 
-	token, err := cred.GetToken(context.Background(), policy.TokenRequestOptions{Scopes: []string{"https://graph.microsoft.com/.default"}})
+	wiClientID := os.Getenv("WI_CLIENT_ID")
+	subID := os.Getenv("SUB_ID")
+
+	cred, err := azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{ClientID: wiClientID})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Print(token.Token)
-
-	client, err := armresources.NewResourceGroupsClient("412d1f37-bc7c-422c-bf7e-93099a2feab0", cred, nil)
+	client, err := armresources.NewResourceGroupsClient(subID, cred, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,8 +45,14 @@ func main() {
 	for _, resource := range resourceGroups {
 		log.Printf("Resource Group Name: %s", *resource.Name)
 	}
+}
 
-	log.Print("done")
+func printToken(cred *azidentity.DefaultAzureCredential) {
+	token, err := cred.GetToken(context.Background(), policy.TokenRequestOptions{Scopes: []string{"https://graph.microsoft.com/.default"}})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Print(token.Token)
 }
 
 func listResourceGroup(resourceGroupClient *armresources.ResourceGroupsClient, ctx context.Context) ([]*armresources.ResourceGroup, error) {
