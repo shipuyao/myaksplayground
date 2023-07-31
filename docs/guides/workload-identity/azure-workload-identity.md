@@ -1,11 +1,11 @@
 # Azure Workload Identity
 
-## Introduction
+## 1. Introduction
 
 [Azure AD workload identity](https://learn.microsoft.com/en-us/azure/active-directory/workload-identities/workload-identities-overview) uses [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) enabling pods to use a Kubernetes identity (that is, a service account). A Kubernetes token is issued and [OIDC federation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens) enables Kubernetes applications to access Azure resources securely with Azure AD based on annotated service accounts.
 
 
-## Workload Identity Federation​
+## 2. Workload Identity Federation​
 
 Typically, an applicaiton service running outside of Azure uses a secret or certificate to access protected resources in Azure, Microsoft Graph or Microsoft 365.
 
@@ -15,7 +15,7 @@ Workload Identity Federation allows you to access Azure Active Directory. Azure 
 
 You use workload identity federation to configure an user-assigned managed identity or app registration in Azure AD to trust tokens from an external identity provider (IdP), such as GitHub or Google so your external software can access the resources to which the applicaiton registration has been granted access. 
 
-## General workflow
+## 3. General workflow
 
 ![workflow](workflow.svg)
 
@@ -23,7 +23,7 @@ You use workload identity federation to configure an user-assigned managed ident
 
 - *External identity provider* such as kube-api-server or other identity provider
 
-### How it works in AKS
+### 3.1 How it works in AKS
 
 In this model, the Kubernetes cluster becomes a token issuer, issuing tokens to Kubernetes Service Accounts. These service account tokens can be configured to be trusted on Azure AD applications or user-assigned managed identities. Workload can exchange a service account token projected to its volume for an Azure AD access token using the Azure Identity SDKs or the Microsoft Authentication Library (MSAL).
 
@@ -39,7 +39,7 @@ sequenceDiagram
     Azure AD-->>Workload: 4. Returns Azure AD access token
     Workload->>Azure Resource: 5. Access resource using Azure AD access token
 ```
-### How to valid incoming token
+### 3.2 How to valid incoming token
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +78,7 @@ sequenceDiagram
 ```
 </details>
 
-### How injection works
+### 3.3 How injection works
 
 ```mermaid
 flowchart LR
@@ -127,7 +127,7 @@ spec:
 ```
 </details>
 
-### How azure-identity-token is generated
+### 3.4 How azure-identity-token is generated
 
 Using [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) to create token.
 
@@ -149,7 +149,86 @@ system:serviceaccount:$SERVICE_ACCOUNT_NAMESPACE:$SERVICE_ACCOUNT_NAME
 
 The combination of issuer and subject must be unique on the app.
 
-## Quick Testing
+### 3.5 Service Account
+
+> A service account provides an identity for processes that run in a Pod.
+
+Azure AD Workload Identity supports the following mappings:
+
+**One-to-One**
+
+A service account referencing an AAD object
+
+DefaultAzureCredential will use the environment variables injected by the Azure Workload Identity mutating webhook to authenticate with Azure Resource.
+
+Defaults to the value of the environment variable AZURE_CLIENT_ID.
+
+```golang
+// Example in Go
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		  log.Fatal(err)
+	}
+```
+
+**Many-to-One**
+
+Multiple service accounts referencing the same AAD object.
+
+It is possible to have a many-to-one relationship between multiple identities and a Kubernetes service account, i.e. you can create multiple federated identity credentials that reference the same service account in your Kubernetes cluster.
+
+```json
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    azure.workload.identity/client-id: "${USER_ASSIGNED_CLIENT_ID}"
+  name: "${SERVICE_ACCOUNT_NAME_1}"
+  namespace: "${SERVICE_ACCOUNT_NAMESPACE_1}"
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    azure.workload.identity/client-id: "${USER_ASSIGNED_CLIENT_ID}"
+  name: "${SERVICE_ACCOUNT_NAME_2}"
+  namespace: "${SERVICE_ACCOUNT_NAMESPACE_2}"
+```
+
+**One-to-Many**
+
+A service account referencing multiple AAD objects by changing the client ID annotation.
+
+> Note: if the service account annotations are updated, you need to restart the pod for the changes to take effect.
+
+```json
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    azure.workload.identity/client-id: "${USER_ASSIGNED_CLIENT_ID}"
+  name: "${SERVICE_ACCOUNT_NAME}"
+  namespace: "${SERVICE_ACCOUNT_NAMESPACE}"
+```
+
+[*Refernece: Service Account*](https://azure.github.io/azure-workload-identity/docs/topics/service-account-labels-and-annotations.html#service-account)
+
+OR you can specify MI client ID via SDK when creating credential.
+
+```golang
+// Example in Go
+	wiClientID := os.Getenv("WI_CLIENT_ID")
+	subID := os.Getenv("SUB_ID")
+
+	cred, err := azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{ClientID: wiClientID})
+	if err != nil {
+		log.Fatal(err)
+	}
+```
+
+## 4. Testing
+
+### 4.1 Quick testing
 
 Using azure cli to quickly get access token via workload identity
 
@@ -169,7 +248,7 @@ spec:
       name: oidc
       imagePullPolicy: Always
       command: ["/bin/bash"]
-      args: ["-c", "sleep infinity"]
+      args: ["-c", "sleep 999999"]
   nodeSelector:
     kubernetes.io/os: linux
 EOF
@@ -183,32 +262,30 @@ az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-princi
 az account get-access-token --resource https://graph.microsoft.com
 ```
 
-## SDK Testing
+### 4.3 More SDK examples
 
-[Using Workload Idenity access Azure KV - Golang](https://github.com/Azure/azure-workload-identity/blob/main/examples/azure-identity/go/main.go)
+https://github.com/Azure-Samples/azure-sdk-for-go-samples
 
-## Multiple Indentity
+https://github.com/Azure/azure-workload-identity/tree/main/examples
 
-Many to One
-
-string userAssignedClientId = "<your managed identity client Id>";
-var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { ManagedIdentityClientId = userAssignedClientId });
-
-var blobClient = new BlobClient(new Uri("https://myaccount.blob.core.windows.net/mycontainer/myblob"), credential);
+### 4.4 Terraform 
 
 TODO
 
+https://github.com/tdihp/myakshack/tree/main/walkthroughs/workload-identity
 
-## Troubleshooting
+## 5. Troubleshooting
 
 ### TODO
 
-logs
+### JWT
 
-### Request sent to OIDC issuer
+Check toke file via https://jwt.ms/
+
+### Request sent to OIDC issuer [Internal ASI Only]
 ![oidc logs](oidc-logs.png)
 
-### Webhook pod mutation log
+### Webhook pod mutation log [Internal ASI Only]
 ![webhook logs](webhook-logs.png)
 
 ## Commen errors
@@ -242,6 +319,3 @@ This can happen if OIDC blob is not refreshed, please use ASI to navigate to Sec
 ```json
 "error":"invalid_client","error_description":"AADSTS700024: Client assertion is not within its valid time range. Current time: 2023-05-30T05:19:20.3135329Z, assertion valid from 2023-02-28T08:57:37.0000000Z, expiry time of assertion 2023-02-28T09:57:37.0000000Z. Review the documentation at https://docs.microsoft.com/azure/active-directory/develop/active-directory-certificate-credentials .\r\nTrace ID: e108283e-633a-4b4d-ba18-dcd92c6ea500\r\nCorrelation ID: e52ee2e3-a68f-46a2-b95d-d5cd556399c8\r\nTimestamp: 2023-05-30 05:19:20Z","error_codes":[700024],"timestamp":"2023-05-30 05:19:20Z","trace_id":"e108283e-633a-4b4d-ba18-dcd92c6ea500","correlation_id":"e52ee2e3-a68f-46a2-b95d-d5cd556399c8","error_uri":"https://login.microsoftonline.com/error?code=700024"}
 ```
-
-[*Reference - PG wiki*](https://eng.ms/docs/cloud-ai-platform/azure-core/azure-management-and-platforms/containers-bburns/azure-kubernetes-service/azure-kubernetes-service-troubleshooting-guide/doc/overlay/security/wi)
-

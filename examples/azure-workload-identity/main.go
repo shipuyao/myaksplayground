@@ -11,9 +11,12 @@ import (
 )
 
 func main() {
+	// Using single Managed Identity
+	//
 	// DefaultAzureCredential will use the environment variables injected by the Azure Workload Identity
 	// mutating webhook to authenticate with Azure Resource.
-
+	//
+	// Defaults to the value of the environment variable AZURE_CLIENT_ID.
 	/*
 		cred, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
@@ -21,7 +24,8 @@ func main() {
 		}
 	*/
 
-	// Using user specified workload identity
+	// Using multiple managed identities
+	// injected managed idenitity client id by environment variable
 
 	wiClientID := os.Getenv("WI_CLIENT_ID")
 	subID := os.Getenv("SUB_ID")
@@ -31,6 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Make sure your managed identity has premission to access your subscription
 	client, err := armresources.NewResourceGroupsClient(subID, cred, nil)
 	if err != nil {
 		log.Fatal(err)
