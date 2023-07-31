@@ -344,12 +344,6 @@ kubectl -n kube-system logs -l azure-workload-identity.io/system=true --since=1h
 
 Check toke file via https://jwt.ms/
 
-#### Request sent to OIDC issuer [Internal ASI Only]
-![oidc logs](oidc-logs.png)
-
-#### Webhook pod mutation log [Internal ASI Only]
-![webhook logs](webhook-logs.png)
-
 ## Common errors
 
 **AADSTS70021**
