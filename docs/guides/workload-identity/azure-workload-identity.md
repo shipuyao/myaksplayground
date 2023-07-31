@@ -334,7 +334,7 @@ AZURE_CLIENT_ID=d26641b9-074b-4e46-8c1f-cb3a513b2502
           path: azure-identity-token
 ```
 
-### Get mutating admission webhook pod logs
+#### Get mutating admission webhook pod logs
 
 ```bash
 kubectl -n kube-system logs -l azure-workload-identity.io/system=true --since=1h 
