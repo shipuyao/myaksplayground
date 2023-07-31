@@ -300,7 +300,7 @@ https://github.com/tdihp/myakshack/tree/main/walkthroughs/workload-identity
 
 ## 5. Troubleshooting
 
-### Is workload identity pod running?
+#### Is workload identity pod running?
 
 ```bash
 ➜  ~ kubectl -n kube-system get pods -l azure-workload-identity.io/system="true"
@@ -308,11 +308,11 @@ NAME                                                   READY   STATUS    RESTART
 azure-wi-webhook-controller-manager-7b4fb69774-5zbtn   1/1     Running   0          2d21h
 azure-wi-webhook-controller-manager-7b4fb69774-qmcdq   1/1     Running   0          2d21h
 ```
-### Does the pod using workload identity has required label? 
+#### Does the pod using workload identity has required label? 
 
 make sure azure.workload.identity/use: "true" is present in pod
 
-### Does the pod using workload identity has correct environment injected? 
+#### Does the pod using workload identity has correct environment injected? 
 
 ```bash
 quick-cli:/# printenv | grep AZURE
@@ -322,7 +322,7 @@ AZURE_AUTHORITY_HOST=https://login.microsoftonline.com/
 AZURE_CLIENT_ID=d26641b9-074b-4e46-8c1f-cb3a513b2502
 ```
 
-### Does the pod has project volume?
+#### Does the pod has project volume?
 
 ```yaml
   - name: azure-identity-token
@@ -341,14 +341,14 @@ AZURE_CLIENT_ID=d26641b9-074b-4e46-8c1f-cb3a513b2502
 kubectl -n kube-system logs -l azure-workload-identity.io/system=true --since=1h 
 ```
 
-### Decode token file with JWT
+#### Decode token file with JWT
 
 Check toke file via https://jwt.ms/
 
-### Request sent to OIDC issuer [Internal ASI Only]
+#### Request sent to OIDC issuer [Internal ASI Only]
 ![oidc logs](oidc-logs.png)
 
-### Webhook pod mutation log [Internal ASI Only]
+#### Webhook pod mutation log [Internal ASI Only]
 ![webhook logs](webhook-logs.png)
 
 ## Common errors
