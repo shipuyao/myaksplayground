@@ -286,13 +286,13 @@ az account get-access-token --resource https://graph.microsoft.com
 </details>
 <br/>
 
-### 4.3 More SDK examples
+### 4.2 More SDK examples
 
 https://github.com/Azure-Samples/azure-sdk-for-go-samples
 
 https://github.com/Azure/azure-workload-identity/tree/main/examples
 
-### 4.4 Terraform 
+### 4.3 Terraform 
 
 TODO
 
@@ -302,11 +302,12 @@ https://github.com/tdihp/myakshack/tree/main/walkthroughs/workload-identity
 
 ### Is workload identity pod running?
 
+```bash
 ➜  ~ kubectl -n kube-system get pods -l azure-workload-identity.io/system="true"
 NAME                                                   READY   STATUS    RESTARTS   AGE
 azure-wi-webhook-controller-manager-7b4fb69774-5zbtn   1/1     Running   0          2d21h
 azure-wi-webhook-controller-manager-7b4fb69774-qmcdq   1/1     Running   0          2d21h
-
+```
 ### Does the pod using workload identity has required label? 
 
 make sure azure.workload.identity/use: "true" is present in pod
