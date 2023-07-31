@@ -334,10 +334,25 @@ AZURE_CLIENT_ID=d26641b9-074b-4e46-8c1f-cb3a513b2502
           path: azure-identity-token
 ```
 
-#### Get mutating admission webhook pod logs
+#### Get workload idenity pod logs
 
 ```bash
 kubectl -n kube-system logs -l azure-workload-identity.io/system=true --since=1h 
+```
+
+#### Get mutating admission webhook kube aduit logs
+
+Make sure you enabled **Kubernetes Audit Admin Logs** in Diagnostic setting
+
+```
+AzureDiagnostics
+| where Category=="kube-audit"
+| where log_s has "mutation.webhook.admission.k8s.io"
+| where log_s has "wi-webhook"
+| project TimeGenerated, json_log= parse_json(log_s)
+| extend requestURI = json_log.requestURI, requestObject = json_log.requestObject, annotations = json_log.annotations
+| where annotations has "wi-webhook"
+| project-away json_log
 ```
 
 #### Decode token file with JWT
