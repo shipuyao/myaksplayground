@@ -163,19 +163,26 @@ DefaultAzureCredential will use the environment variables injected by the Azure 
 
 Defaults to the value of the environment variable AZURE_CLIENT_ID.
 
+<details>
+  <summary>Example in Go</summary>
+
 ```golang
-// Example in Go
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		  log.Fatal(err)
 	}
 ```
+</details>
+<br/>
 
 **Many-to-One**
 
 Multiple service accounts referencing the same AAD object.
 
 It is possible to have a many-to-one relationship between multiple identities and a Kubernetes service account, i.e. you can create multiple federated identity credentials that reference the same service account in your Kubernetes cluster.
+
+<details>
+  <summary>Example yaml</summary>
 
 ```json
 apiVersion: v1
@@ -194,12 +201,17 @@ metadata:
   name: "${SERVICE_ACCOUNT_NAME_2}"
   namespace: "${SERVICE_ACCOUNT_NAMESPACE_2}"
 ```
+</details>
+<br/>
 
 **One-to-Many**
 
 A service account referencing multiple AAD objects by changing the client ID annotation.
 
 > Note: if the service account annotations are updated, you need to restart the pod for the changes to take effect.
+
+<details>
+  <summary>Example yaml</summary>
 
 ```json
 apiVersion: v1
@@ -210,13 +222,17 @@ metadata:
   name: "${SERVICE_ACCOUNT_NAME}"
   namespace: "${SERVICE_ACCOUNT_NAMESPACE}"
 ```
+</details>
+<br/>
 
-[*Refernece: Service Account*](https://azure.github.io/azure-workload-identity/docs/topics/service-account-labels-and-annotations.html#service-account)
+[*Reference: Service Account*](https://azure.github.io/azure-workload-identity/docs/topics/service-account-labels-and-annotations.html#service-account)
 
 OR you can specify MI client ID via SDK when creating credential.
 
+<details>
+  <summary>Example in Go</summary>
+
 ```golang
-// Example in Go
 	wiClientID := os.Getenv("WI_CLIENT_ID")
 	subID := os.Getenv("SUB_ID")
 
@@ -225,12 +241,17 @@ OR you can specify MI client ID via SDK when creating credential.
 		log.Fatal(err)
 	}
 ```
+</details>
+<br/>
 
 ## 4. Testing
 
 ### 4.1 Quick testing
 
 Using azure cli to quickly get access token via workload identity
+
+<details>
+  <summary>Example</summary>
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -262,6 +283,9 @@ az login --federated-token "$(cat $AZURE_FEDERATED_TOKEN_FILE)" --service-princi
 az account get-access-token --resource https://graph.microsoft.com
 ```
 
+</details>
+<br/>
+
 ### 4.3 More SDK examples
 
 https://github.com/Azure-Samples/azure-sdk-for-go-samples
@@ -276,9 +300,47 @@ https://github.com/tdihp/myakshack/tree/main/walkthroughs/workload-identity
 
 ## 5. Troubleshooting
 
-### TODO
+### Is workload identity pod running?
 
-### JWT
+➜  ~ kubectl -n kube-system get pods -l azure-workload-identity.io/system="true"
+NAME                                                   READY   STATUS    RESTARTS   AGE
+azure-wi-webhook-controller-manager-7b4fb69774-5zbtn   1/1     Running   0          2d21h
+azure-wi-webhook-controller-manager-7b4fb69774-qmcdq   1/1     Running   0          2d21h
+
+### Does the pod using workload identity has required label? 
+
+make sure azure.workload.identity/use: "true" is present in pod
+
+### Does the pod using workload identity has correct environment injected? 
+
+```bash
+quick-cli:/# printenv | grep AZURE
+AZURE_TENANT_ID=72f988bf-86f1-41af-91ab-2d7cd011db47
+AZURE_FEDERATED_TOKEN_FILE=/var/run/secrets/azure/tokens/azure-identity-token
+AZURE_AUTHORITY_HOST=https://login.microsoftonline.com/
+AZURE_CLIENT_ID=d26641b9-074b-4e46-8c1f-cb3a513b2502
+```
+
+### Does the pod has project volume?
+
+```yaml
+  - name: azure-identity-token
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          audience: api://AzureADTokenExchange
+          expirationSeconds: 3600
+          path: azure-identity-token
+```
+
+### Get mutating admission webhook pod logs
+
+```bash
+kubectl -n kube-system logs -l azure-workload-identity.io/system=true --since=1h 
+```
+
+### Decode token file with JWT
 
 Check toke file via https://jwt.ms/
 
