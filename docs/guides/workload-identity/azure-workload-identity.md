@@ -351,7 +351,7 @@ Check toke file via https://jwt.ms/
 ### Webhook pod mutation log [Internal ASI Only]
 ![webhook logs](webhook-logs.png)
 
-## Commen errors
+## Common errors
 
 **AADSTS70021**
 
