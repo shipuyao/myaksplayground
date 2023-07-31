@@ -2,8 +2,7 @@
 
 ## 1. Introduction
 
-[Azure AD workload identity](https://learn.microsoft.com/en-us/azure/active-directory/workload-identities/workload-identities-overview) uses [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) enabling pods to use a Kubernetes identity (that is, a service account). A Kubernetes token is issued and [OIDC federation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens) enables Kubernetes applications to access Azure resources securely with Azure AD based on annotated service accounts.
-
+[Azure AD workload identity](https://azure.github.io/azure-workload-identity/docs/introduction.html) uses [Service Account Token Volume Projection](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection) enabling pods to use a Kubernetes identity (that is, a service account). A Kubernetes token is issued and [OIDC federation](https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens) enables Kubernetes applications to access Azure resources securely with Azure AD based on annotated service accounts.
 
 ## 2. Workload Identity Federation​
 
